@@ -3,8 +3,7 @@ import { StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity, Alert, A
 
 // --- QUAN TRỌNG: THAY IP CỦA BẠN VÀO ĐÂY ---
 // Giữ nguyên đuôi :8000/api...
-const IP_MAY_TINH = '192.168.0.100'; 
-const API_URL = `http://${IP_MAY_TINH}:8000/api`;
+const API_URL = `https://api-dan-cu.onrender.com`;
 
 export default function App() {
   const [data, setData] = useState([]);

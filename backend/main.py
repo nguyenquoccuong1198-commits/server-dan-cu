@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker, Session
 # --- 1. CẤU HÌNH CƠ SỞ DỮ LIỆU (SUPABASE - POSTGRESQL) ---
 
 # Đây là link kết nối đã ghép mật khẩu của bạn
-DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
+DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.supabase.co:5432/postgres"
 
 # Tạo kết nối đến Supabase
 engine = create_engine(DATABASE_URL)
