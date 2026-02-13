@@ -5,85 +5,76 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-# --- 1. CẤU HÌNH CƠ SỞ DỮ LIỆU (SUPABASE - POSTGRESQL) ---
-
-# Đây là link kết nối đã ghép mật khẩu của bạn
+# --- 1. CẤU HÌNH ---
+# Dán link Supabase của bạn vào đây (Link cũ vẫn dùng tốt)
 DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.supabase.co:5432/postgres"
 
-# Tạo kết nối đến Supabase
 engine = create_engine(DATABASE_URL)
-
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU (Model) ---
-class CuDanDB(Base):
-    __tablename__ = "cu_dan"
+# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU MỚI (Theo file Word) ---
+class PhieuKhaoSat(Base):
+    __tablename__ = "phieu_khao_sat"  # Tên bảng mới
 
     id = Column(Integer, primary_key=True, index=True)
-    ten = Column(String, index=True)
-    can_ho = Column(String)
+    ho_ten = Column(String)
+    ngay_sinh = Column(String)
+    gioi_tinh = Column(String)
+    thuong_tru = Column(String)
+    noi_o_hien_tai = Column(String)
+    so_cmnd = Column(String)
+    ngay_cap = Column(String)
+    noi_cap = Column(String)
+    que_quan = Column(String)
+    dan_toc = Column(String)
+    ton_giao = Column(String)
     sdt = Column(String)
+    nghe_nghiep = Column(String) # Thất nghiệp/Có việc/Hưu trí/Học sinh
 
-# Lệnh này sẽ tự động tạo bảng 'cu_dan' trên Supabase nếu chưa có
+# Tạo bảng mới tự động
 Base.metadata.create_all(bind=engine)
 
-# --- 3. KHỞI TẠO APP FASTAPI ---
 app = FastAPI()
 
-# Cấu hình CORS (Để điện thoại và Web kết nối được)
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 
-# Hàm phụ trợ để lấy kết nối Database
 def get_db():
     db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    try: yield db
+    finally: db.close()
 
-# --- 4. MÔ HÌNH DỮ LIỆU GIAO TIẾP (Pydantic) ---
-class CuDanInput(BaseModel):
-    ten: str
-    can_ho: str
-    sdt: str
+# --- 3. DỮ LIỆU ĐẦU VÀO ---
+class PhieuInput(BaseModel):
+    ho_ten: str
+    ngay_sinh: str = ""
+    gioi_tinh: str = "Nam"
+    thuong_tru: str = ""
+    noi_o_hien_tai: str = ""
+    so_cmnd: str = ""
+    ngay_cap: str = ""
+    noi_cap: str = "Cục CS QLHC về TTXH"
+    que_quan: str = ""
+    dan_toc: str = "Kinh"
+    ton_giao: str = "Không"
+    sdt: str = ""
+    nghe_nghiep: str = "Đang có việc làm"
 
-# --- 5. CÁC API (CỬA NGÕ) ---
-
+# --- 4. CÁC API ---
 @app.get("/")
-def home():
-    return {"message": "Server đang chạy Online với Supabase!"}
+def home(): return {"message": "Server Phiếu Khảo Sát Online"}
 
-@app.get("/api/cu-dan")
-def lay_danh_sach_dan_cu(db: Session = Depends(get_db)):
-    """Lấy toàn bộ danh sách từ Supabase"""
-    danh_sach = db.query(CuDanDB).all()
-    return danh_sach
+@app.get("/api/danh-sach")
+def lay_danh_sach(db: Session = Depends(get_db)):
+    return db.query(PhieuKhaoSat).all()
 
-@app.post("/api/them-cu-dan")
-def them_cu_dan(nguoi: CuDanInput, db: Session = Depends(get_db)):
-    """Thêm cư dân mới vào Supabase"""
-    cu_dan_moi = CuDanDB(ten=nguoi.ten, can_ho=nguoi.can_ho, sdt=nguoi.sdt)
-    
-    db.add(cu_dan_moi)
+@app.post("/api/gui-phieu")
+def gui_phieu(form: PhieuInput, db: Session = Depends(get_db)):
+    phieu_moi = PhieuKhaoSat(**form.dict())
+    db.add(phieu_moi)
     db.commit()
-    db.refresh(cu_dan_moi)
-    
-    print(f"✅ Đã lưu lên Mây (Supabase): {nguoi.ten} - {nguoi.can_ho}")
-    return {"message": "Thêm thành công", "data": cu_dan_moi}
-
-@app.delete("/api/xoa-cu-dan/{user_id}")
-def xoa_cu_dan(user_id: int, db: Session = Depends(get_db)):
-    """Xóa cư dân"""
-    cu_dan = db.query(CuDanDB).filter(CuDanDB.id == user_id).first()
-    if cu_dan:
-        db.delete(cu_dan)
-        db.commit()
-        return {"message": "Đã xóa thành công"}
-    raise HTTPException(status_code=404, detail="Không tìm thấy cư dân")
+    db.refresh(phieu_moi)
+    print(f"✅ Đã nhận phiếu của: {form.ho_ten}")
+    return {"message": "Gửi thành công", "data": phieu_moi}
