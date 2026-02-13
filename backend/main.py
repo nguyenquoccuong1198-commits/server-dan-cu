@@ -5,12 +5,12 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-# --- 1. CẤU HÌNH DATABASE (Đã chỉnh sửa chuẩn cho Render) ---
-# Dùng chuỗi kết nối Pooler (IPv4) cổng 6543
-DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
+# --- 1. CẤU HÌNH DATABASE (Đã sửa lại Link Chuẩn Quốc Tế) ---
+# Dùng tên miền chung .pooler.supabase.com để tránh lỗi region
+DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@vokaxxmfssepxkxfenqa.pooler.supabase.com:6543/postgres"
 
-# Tạo kết nối (Thêm pool_pre_ping để giữ kết nối ổn định)
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# Thêm client_encoding để tránh lỗi font chữ tiếng Việt
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={'client_encoding': 'utf8'})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -34,8 +34,12 @@ class PhieuKhaoSat(Base):
     sdt = Column(String)
     nghe_nghiep = Column(String)
 
-# Tạo bảng
-Base.metadata.create_all(bind=engine)
+# Tạo bảng (Nếu chưa có)
+try:
+    Base.metadata.create_all(bind=engine)
+    print("✅ Kết nối Database và tạo bảng thành công!")
+except Exception as e:
+    print(f"❌ Lỗi khởi tạo Database: {e}")
 
 # --- 3. APP FASTAPI ---
 app = FastAPI()
@@ -67,7 +71,7 @@ class PhieuInput(BaseModel):
 
 # --- 4. API ---
 @app.get("/")
-def home(): return {"message": "Server Dân Cư đang chạy OK!"}
+def home(): return {"message": "Server Dân Cư Online (v2)"}
 
 @app.get("/api/danh-sach")
 def lay_danh_sach(db: Session = Depends(get_db)):
@@ -82,5 +86,5 @@ def gui_phieu(form: PhieuInput, db: Session = Depends(get_db)):
         db.refresh(phieu_moi)
         return {"message": "Gửi thành công", "data": phieu_moi}
     except Exception as e:
-        print(f"Lỗi: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Lỗi gửi phiếu: {e}")
+        raise HTTPException(status_code=500, detail="Lỗi Server: " + str(e))
