@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trang Quản Lý Dân Cư (PC)</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        button { padding: 10px 20px; cursor: pointer; background: #28a745; color: white; border: none; }
+    </style>
+</head>
+<body>
+    <h1>🏠 Hệ Thống Quản Lý Dân Cư (PC)</h1>
+    <button onclick="taiDuLieu()">🔄 Cập nhật danh sách mới nhất</button>
+
+    <table id="bang-dan-cu">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Họ Tên</th>
+                <th>Căn Hộ</th>
+                <th>SĐT</th>
+            </tr>
+        </thead>
+        <tbody id="noi-dung">
+            </tbody>
+    </table>
+
+    <script>
+        // --- QUAN TRỌNG: Thay IP bằng IP máy bạn ---
+        const API_URL = "http://localhost:8000/api/cu-dan";
+
+        async function taiDuLieu() {
+            const response = await fetch(API_URL);
+            const data = await response.json();
+            
+            const bang = document.getElementById("noi-dung");
+            bang.innerHTML = ""; // Xóa cũ
+
+            data.forEach(item => {
+                const row = `<tr>
+                    <td>${item.id}</td>
+                    <td><b>${item.ten}</b></td>
+                    <td>${item.can_ho}</td>
+                    <td>${item.sdt}</td>
+                </tr>`;
+                bang.innerHTML += row;
+            });
+        }
+
+        // Tự động tải khi mở web
+        taiDuLieu();
+    </script>
+</body>
+</html>
