@@ -5,22 +5,24 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-# --- 1. CẤU HÌNH ---
-# Dán link Supabase của bạn vào đây (Link cũ vẫn dùng tốt)
-DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
+# --- 1. CẤU HÌNH DATABASE (Đã chỉnh sửa chuẩn cho Render) ---
+# Dùng chuỗi kết nối Pooler (IPv4) cổng 6543
+DATABASE_URL = "postgresql+psycopg2://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
 
-engine = create_engine(DATABASE_URL)
+# Tạo kết nối (Thêm pool_pre_ping để giữ kết nối ổn định)
+engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU MỚI (Theo file Word) ---
+# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU ---
 class PhieuKhaoSat(Base):
-    __tablename__ = "phieu_khao_sat"  # Tên bảng mới
+    __tablename__ = "phieu_khao_sat"
 
     id = Column(Integer, primary_key=True, index=True)
     ho_ten = Column(String)
     ngay_sinh = Column(String)
-    gioi_tinh = Column(String)
+    gio_tinh = Column(String)
     thuong_tru = Column(String)
     noi_o_hien_tai = Column(String)
     so_cmnd = Column(String)
@@ -30,11 +32,12 @@ class PhieuKhaoSat(Base):
     dan_toc = Column(String)
     ton_giao = Column(String)
     sdt = Column(String)
-    nghe_nghiep = Column(String) # Thất nghiệp/Có việc/Hưu trí/Học sinh
+    nghe_nghiep = Column(String)
 
-# Tạo bảng mới tự động
+# Tạo bảng
 Base.metadata.create_all(bind=engine)
 
+# --- 3. APP FASTAPI ---
 app = FastAPI()
 
 app.add_middleware(
@@ -46,11 +49,11 @@ def get_db():
     try: yield db
     finally: db.close()
 
-# --- 3. DỮ LIỆU ĐẦU VÀO ---
+# Input Model
 class PhieuInput(BaseModel):
     ho_ten: str
     ngay_sinh: str = ""
-    gioi_tinh: str = "Nam"
+    gio_tinh: str = "Nam"
     thuong_tru: str = ""
     noi_o_hien_tai: str = ""
     so_cmnd: str = ""
@@ -62,9 +65,9 @@ class PhieuInput(BaseModel):
     sdt: str = ""
     nghe_nghiep: str = "Đang có việc làm"
 
-# --- 4. CÁC API ---
+# --- 4. API ---
 @app.get("/")
-def home(): return {"message": "Server Phiếu Khảo Sát Online"}
+def home(): return {"message": "Server Dân Cư đang chạy OK!"}
 
 @app.get("/api/danh-sach")
 def lay_danh_sach(db: Session = Depends(get_db)):
@@ -72,10 +75,12 @@ def lay_danh_sach(db: Session = Depends(get_db)):
 
 @app.post("/api/gui-phieu")
 def gui_phieu(form: PhieuInput, db: Session = Depends(get_db)):
-    phieu_moi = PhieuKhaoSat(**form.dict())
-    db.add(phieu_moi)
-    db.commit()
-    db.refresh(phieu_moi)
-    print(f"✅ Đã nhận phiếu của: {form.ho_ten}")
-    return {"message": "Gửi thành công", "data": phieu_moi}
-# Cap nhat cong 6543
+    try:
+        phieu_moi = PhieuKhaoSat(**form.dict())
+        db.add(phieu_moi)
+        db.commit()
+        db.refresh(phieu_moi)
+        return {"message": "Gửi thành công", "data": phieu_moi}
+    except Exception as e:
+        print(f"Lỗi: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
