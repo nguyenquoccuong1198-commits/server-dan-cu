@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker, Session
 
 # --- 1. CẤU HÌNH ---
 # Dán link Supabase của bạn vào đây (Link cũ vẫn dùng tốt)
-DATABASE_URL = "postgresql://postgres:AdminVietNam2026@db.vokaxxmfssepxkxfenqa.supabase.co:5432/postgres"
+DATABASE_URL = "postgresql://postgres:AdminVietNam2026@db.vokaxxmfssepxkxfenqa.supabase.co:6543/postgres"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -78,3 +78,4 @@ def gui_phieu(form: PhieuInput, db: Session = Depends(get_db)):
     db.refresh(phieu_moi)
     print(f"✅ Đã nhận phiếu của: {form.ho_ten}")
     return {"message": "Gửi thành công", "data": phieu_moi}
+# Cap nhat cong 6543
