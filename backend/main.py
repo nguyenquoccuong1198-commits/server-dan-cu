@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker, Session
 
 # --- 1. CẤU HÌNH DATABASE (Đã chỉnh sửa chuẩn cho Render) ---
 # Dùng chuỗi kết nối Pooler (IPv4) cổng 6543
-DATABASE_URL = "postgresql+psycopg2://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
+DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
 
 # Tạo kết nối (Thêm pool_pre_ping để giữ kết nối ổn định)
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
