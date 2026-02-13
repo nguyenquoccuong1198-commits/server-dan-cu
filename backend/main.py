@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker, Session
 
 # --- 1. CẤU HÌNH ---
 # Dán link Supabase của bạn vào đây (Link cũ vẫn dùng tốt)
-DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.supabase.co:5432/postgres"
+DATABASE_URL = "postgresql://postgres:AdminVietNam2026@db.vokaxxmfssepxkxfenqa.supabase.co:5432/postgres"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
