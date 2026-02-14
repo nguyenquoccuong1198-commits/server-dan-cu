@@ -21,17 +21,17 @@ Base = declarative_base()
 
 # Bảng Tài Khoản (User)
 class User(Base):
-    __tablename__ = "users"
+    __tablename__ = "users_final" # Đổi tên mới để tránh lỗi cũ
     id = Column(Integer, primary_key=True, index=True)
-    sdt = Column(String, unique=True, index=True) # SĐT là duy nhất
+    sdt = Column(String, unique=True, index=True)
     mat_khau = Column(String)
     ho_ten = Column(String)
 
 # Bảng Hồ Sơ (Dữ liệu dân cư)
 class HoSoDanCu(Base):
-    __tablename__ = "hoso_dancu_pro"
+    __tablename__ = "hoso_dancu_final" # Đổi tên bảng để tạo mới hoàn toàn
     id = Column(Integer, primary_key=True, index=True)
-    nguoi_tao_sdt = Column(String) # Lưu xem ai là người gửi phiếu này
+    nguoi_tao_sdt = Column(String) # Cột mới này sẽ được tạo
     
     # Tab 1
     ho_ten = Column(String)
@@ -52,7 +52,7 @@ class HoSoDanCu(Base):
     # Tab 2
     danh_sach_thanh_vien = Column(Text) 
 
-# Tạo bảng
+# Tạo bảng (Sẽ tạo bảng mới tên ..._final)
 try:
     Base.metadata.create_all(bind=engine)
 except:
@@ -78,7 +78,7 @@ class LoginInput(BaseModel):
     mat_khau: str
 
 class HoSoInput(BaseModel):
-    nguoi_tao_sdt: str = "" # Tự động điền từ App
+    nguoi_tao_sdt: str = "" 
     ho_ten: str
     ngay_sinh: str = ""
     gioi_tinh: str = "Nam"
@@ -97,7 +97,7 @@ class HoSoInput(BaseModel):
 
 # --- API ---
 @app.get("/")
-def home(): return {"message": "Server VNeID Clone - Online!"}
+def home(): return {"message": "Server Final - Online!"}
 
 # 1. Đăng ký
 @app.post("/api/dang-ky")
@@ -118,7 +118,7 @@ def dang_nhap(form: LoginInput, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Sai số điện thoại hoặc mật khẩu")
     return {"message": "Đăng nhập thành công", "ho_ten": user.ho_ten, "sdt": user.sdt}
 
-# 3. Gửi phiếu (Cần biết ai gửi)
+# 3. Gửi phiếu
 @app.post("/api/gui-phieu")
 def gui_phieu(form: HoSoInput, db: Session = Depends(get_db)):
     try:
@@ -127,10 +127,10 @@ def gui_phieu(form: HoSoInput, db: Session = Depends(get_db)):
         db.commit()
         return {"message": "Thành công"}
     except Exception as e:
-        print(f"Lỗi: {e}")
-        raise HTTPException(status_code=500, detail="Lỗi Server")
+        print(f"Lỗi Save: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-# 4. Lấy danh sách (Cho PC)
+# 4. Lấy danh sách
 @app.get("/api/danh-sach")
 def lay_danh_sach(db: Session = Depends(get_db)):
     return db.query(HoSoDanCu).order_by(HoSoDanCu.id.desc()).all()
