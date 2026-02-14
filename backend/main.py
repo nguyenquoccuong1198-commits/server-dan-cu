@@ -7,7 +7,6 @@ from sqlalchemy.orm import sessionmaker, Session
 import json
 
 # --- 1. CẤU HÌNH DATABASE ---
-# Giữ nguyên Link kết nối chuẩn của bạn
 DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
 
 try:
@@ -18,13 +17,23 @@ except Exception as e:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU (MỚI & ĐẦY ĐỦ) ---
-class HoSoDanCu(Base):
-    __tablename__ = "hoso_dancu_pro"  # Đổi tên bảng mới
+# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU ---
 
+# Bảng Tài Khoản (User)
+class User(Base):
+    __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
+    sdt = Column(String, unique=True, index=True) # SĐT là duy nhất
+    mat_khau = Column(String)
+    ho_ten = Column(String)
+
+# Bảng Hồ Sơ (Dữ liệu dân cư)
+class HoSoDanCu(Base):
+    __tablename__ = "hoso_dancu_pro"
+    id = Column(Integer, primary_key=True, index=True)
+    nguoi_tao_sdt = Column(String) # Lưu xem ai là người gửi phiếu này
     
-    # --- THÔNG TIN NGƯỜI ĐẠI DIỆN (TAB 1) ---
+    # Tab 1
     ho_ten = Column(String)
     ngay_sinh = Column(String)
     gioi_tinh = Column(String)
@@ -38,14 +47,12 @@ class HoSoDanCu(Base):
     dan_toc = Column(String)
     ton_giao = Column(String)
     sdt = Column(String)
-    cong_viec = Column(String) # Thất nghiệp/Có việc...
+    cong_viec = Column(String)
 
-    # --- THÔNG TIN THÀNH VIÊN (TAB 2) ---
-    # Chúng ta sẽ lưu danh sách thành viên dưới dạng chuỗi văn bản (JSON)
-    # Ví dụ: "[{'ten': 'Con A', 'quan_he': 'Con'}, {'ten': 'Vo B', 'quan_he': 'Vợ'}]"
+    # Tab 2
     danh_sach_thanh_vien = Column(Text) 
 
-# Tạo bảng (Lệnh này sẽ tạo bảng mới)
+# Tạo bảng
 try:
     Base.metadata.create_all(bind=engine)
 except:
@@ -60,9 +67,18 @@ def get_db():
     try: yield db
     finally: db.close()
 
-# Dữ liệu đầu vào (Validation)
+# --- MODEL INPUT ---
+class UserInput(BaseModel):
+    sdt: str
+    mat_khau: str
+    ho_ten: str = ""
+
+class LoginInput(BaseModel):
+    sdt: str
+    mat_khau: str
+
 class HoSoInput(BaseModel):
-    # Tab 1
+    nguoi_tao_sdt: str = "" # Tự động điền từ App
     ho_ten: str
     ngay_sinh: str = ""
     gioi_tinh: str = "Nam"
@@ -77,27 +93,44 @@ class HoSoInput(BaseModel):
     ton_giao: str = "Không"
     sdt: str = ""
     cong_viec: str = "Đang có việc làm"
-    
-    # Tab 2 (Danh sách JSON)
     danh_sach_thanh_vien: str = "[]"
 
 # --- API ---
 @app.get("/")
-def home(): return {"message": "Server Dân Cư PRO - Sẵn sàng!"}
+def home(): return {"message": "Server VNeID Clone - Online!"}
 
-@app.get("/api/danh-sach")
-def lay_danh_sach(db: Session = Depends(get_db)):
-    # Lấy danh sách và sắp xếp mới nhất lên đầu
-    return db.query(HoSoDanCu).order_by(HoSoDanCu.id.desc()).all()
+# 1. Đăng ký
+@app.post("/api/dang-ky")
+def dang_ky(user: UserInput, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.sdt == user.sdt).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="Số điện thoại này đã được đăng ký!")
+    new_user = User(sdt=user.sdt, mat_khau=user.mat_khau, ho_ten=user.ho_ten)
+    db.add(new_user)
+    db.commit()
+    return {"message": "Đăng ký thành công"}
 
+# 2. Đăng nhập
+@app.post("/api/dang-nhap")
+def dang_nhap(form: LoginInput, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.sdt == form.sdt, User.mat_khau == form.mat_khau).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Sai số điện thoại hoặc mật khẩu")
+    return {"message": "Đăng nhập thành công", "ho_ten": user.ho_ten, "sdt": user.sdt}
+
+# 3. Gửi phiếu (Cần biết ai gửi)
 @app.post("/api/gui-phieu")
 def gui_phieu(form: HoSoInput, db: Session = Depends(get_db)):
     try:
         hoso = HoSoDanCu(**form.dict())
         db.add(hoso)
         db.commit()
-        db.refresh(hoso)
-        return {"message": "Thành công", "data": hoso}
+        return {"message": "Thành công"}
     except Exception as e:
         print(f"Lỗi: {e}")
         raise HTTPException(status_code=500, detail="Lỗi Server")
+
+# 4. Lấy danh sách (Cho PC)
+@app.get("/api/danh-sach")
+def lay_danh_sach(db: Session = Depends(get_db)):
+    return db.query(HoSoDanCu).order_by(HoSoDanCu.id.desc()).all()
