@@ -5,12 +5,18 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-# --- 1. CẤU HÌNH DATABASE (Đã sửa lại Link Chuẩn Quốc Tế) ---
-# Dùng tên miền chung .pooler.supabase.com để tránh lỗi region
-DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@vokaxxmfssepxkxfenqa.pooler.supabase.com:6543/postgres"
+# --- 1. CẤU HÌNH DATABASE CHUẨN (Link aws-1) ---
+# Link này do chính Supabase cung cấp cho dự án của bạn
+DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
 
-# Thêm client_encoding để tránh lỗi font chữ tiếng Việt
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={'client_encoding': 'utf8'})
+# Kết nối Database (Thêm client_encoding để hỗ trợ tốt tiếng Việt)
+try:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={'client_encoding': 'utf8'})
+    # Thử kết nối ngay để kiểm tra
+    with engine.connect() as connection:
+        print("✅ KẾT NỐI DATABASE THÀNH CÔNG!")
+except Exception as e:
+    print(f"❌ LỖI KẾT NỐI DATABASE: {e}")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -34,12 +40,11 @@ class PhieuKhaoSat(Base):
     sdt = Column(String)
     nghe_nghiep = Column(String)
 
-# Tạo bảng (Nếu chưa có)
+# Tạo bảng tự động nếu chưa có
 try:
     Base.metadata.create_all(bind=engine)
-    print("✅ Kết nối Database và tạo bảng thành công!")
-except Exception as e:
-    print(f"❌ Lỗi khởi tạo Database: {e}")
+except:
+    pass
 
 # --- 3. APP FASTAPI ---
 app = FastAPI()
@@ -53,7 +58,7 @@ def get_db():
     try: yield db
     finally: db.close()
 
-# Input Model
+# Dữ liệu đầu vào từ điện thoại
 class PhieuInput(BaseModel):
     ho_ten: str
     ngay_sinh: str = ""
@@ -69,9 +74,9 @@ class PhieuInput(BaseModel):
     sdt: str = ""
     nghe_nghiep: str = "Đang có việc làm"
 
-# --- 4. API ---
+# --- 4. CÁC API ---
 @app.get("/")
-def home(): return {"message": "Server Dân Cư Online (v2)"}
+def home(): return {"message": "Server Dân Cư - AWS-1 OK!"}
 
 @app.get("/api/danh-sach")
 def lay_danh_sach(db: Session = Depends(get_db)):
@@ -86,5 +91,5 @@ def gui_phieu(form: PhieuInput, db: Session = Depends(get_db)):
         db.refresh(phieu_moi)
         return {"message": "Gửi thành công", "data": phieu_moi}
     except Exception as e:
-        print(f"Lỗi gửi phiếu: {e}")
-        raise HTTPException(status_code=500, detail="Lỗi Server: " + str(e))
+        print(f"Lỗi: {e}")
+        raise HTTPException(status_code=500, detail="Lỗi lưu dữ liệu vào Database")
