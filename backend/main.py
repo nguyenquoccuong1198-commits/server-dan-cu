@@ -5,17 +5,24 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-# --- 1. CẤU HÌNH DATABASE (BẢN KHÔNG BAO GIỜ TREO) ---
-# Dùng driver postgresql+psycopg2 và chế độ SSL bắt buộc
-DATABASE_URL = "postgresql+psycopg2://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+# ==============================================================================
+# 🔴 CẤU HÌNH MỚI: DÙNG CỔNG 5432 TRÊN POOLER (Session Mode)
+# ==============================================================================
+# Link này đảm bảo:
+# 1. Chạy trên IPv4 (nhờ aws-1...pooler) -> Render thích điều này
+# 2. Dùng cổng 5432 (Session) -> Python/SQLAlchemy thích điều này
+DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
 
-# Tạo engine đơn giản nhất có thể (Bỏ qua kiểm tra kết nối lúc khởi động)
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# Tạo engine (Không cần SSL mode phức tạp nữa, để mặc định cho nhẹ)
+try:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+except Exception as e:
+    print(f"Lỗi tạo engine: {e}")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- 2. ĐỊNH NGHĨA BẢNG ---
+# --- ĐỊNH NGHĨA BẢNG ---
 class PhieuKhaoSat(Base):
     __tablename__ = "phieu_khao_sat"
     id = Column(Integer, primary_key=True, index=True)
@@ -33,18 +40,15 @@ class PhieuKhaoSat(Base):
     sdt = Column(String)
     nghe_nghiep = Column(String)
 
-# Thử tạo bảng (Nếu lỗi thì bỏ qua luôn để Server vẫn chạy được)
+# Tạo bảng
 try:
     Base.metadata.create_all(bind=engine)
 except:
     pass
 
-# --- 3. APP FASTAPI ---
+# --- APP ---
 app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
-)
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 def get_db():
     db = SessionLocal()
@@ -66,10 +70,10 @@ class PhieuInput(BaseModel):
     sdt: str = ""
     nghe_nghiep: str = "Đang có việc làm"
 
-# --- 4. API (Có in Log để kiểm tra) ---
+# --- API ---
 @app.get("/")
-def home(): 
-    return {"message": "Server Dân Cư - Sẵn sàng nhận lệnh!"}
+def home():
+    return {"message": "Server Dân Cư - Cổng 5432 OK!"}
 
 @app.get("/api/danh-sach")
 def lay_danh_sach(db: Session = Depends(get_db)):
@@ -77,14 +81,12 @@ def lay_danh_sach(db: Session = Depends(get_db)):
 
 @app.post("/api/gui-phieu")
 def gui_phieu(form: PhieuInput, db: Session = Depends(get_db)):
-    print(f"--> Đang nhận phiếu của: {form.ho_ten}") # In log để biết có tin hiệu
     try:
         phieu_moi = PhieuKhaoSat(**form.dict())
         db.add(phieu_moi)
         db.commit()
         db.refresh(phieu_moi)
-        print("--> Đã lưu thành công!")
-        return {"message": "Gửi thành công", "data": phieu_moi}
+        return {"message": "Thành công", "data": phieu_moi}
     except Exception as e:
-        print(f"--> LỖI KHI LƯU: {e}")
-        raise HTTPException(status_code=500, detail=f"Lỗi Server: {str(e)}")
+        print(f"Lỗi: {e}")
+        raise HTTPException(status_code=500, detail="Lỗi Server")
