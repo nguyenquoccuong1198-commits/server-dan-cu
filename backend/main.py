@@ -5,23 +5,37 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-# --- 1. CẤU HÌNH DATABASE CHUẨN (Link aws-1) ---
-# Link này do chính Supabase cung cấp cho dự án của bạn
-DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres"
+# ==================================================================================
+# 1. CẤU HÌNH DATABASE (CHUẨN SUPABASE AWS-1 + SSL + KEEPALIVE)
+# ==================================================================================
 
-# Kết nối Database (Thêm client_encoding để hỗ trợ tốt tiếng Việt)
+# Link kết nối đầy đủ (Đã bao gồm Driver psycopg2 và chế độ SSL)
+DATABASE_URL = "postgresql+psycopg2://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+
+# Tạo Engine kết nối với các tham số tối ưu mạng
 try:
-    engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args={'client_encoding': 'utf8'})
-    # Thử kết nối ngay để kiểm tra
+    engine = create_engine(
+        DATABASE_URL, 
+        pool_pre_ping=True,  # Tự động kiểm tra kết nối sống/chết
+        connect_args={
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5
+        }
+    )
+    # Thử kết nối ngay lập tức để in ra Log
     with engine.connect() as connection:
-        print("✅ KẾT NỐI DATABASE THÀNH CÔNG!")
+        print("✅ KẾT NỐI DATABASE THÀNH CÔNG (SSL MODE)!")
 except Exception as e:
     print(f"❌ LỖI KẾT NỐI DATABASE: {e}")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU ---
+# ==================================================================================
+# 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU (Theo mẫu Phiếu Rà Soát)
+# ==================================================================================
 class PhieuKhaoSat(Base):
     __tablename__ = "phieu_khao_sat"
 
@@ -40,25 +54,35 @@ class PhieuKhaoSat(Base):
     sdt = Column(String)
     nghe_nghiep = Column(String)
 
-# Tạo bảng tự động nếu chưa có
+# Lệnh tạo bảng (Chỉ chạy nếu bảng chưa tồn tại)
 try:
     Base.metadata.create_all(bind=engine)
-except:
-    pass
+except Exception as e:
+    print(f"⚠️ Thông báo tạo bảng: {e}")
 
-# --- 3. APP FASTAPI ---
+# ==================================================================================
+# 3. KHỞI TẠO APP FASTAPI
+# ==================================================================================
 app = FastAPI()
 
+# Cấu hình CORS (Cho phép mọi nơi truy cập - Quan trọng cho App điện thoại)
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
+# Hàm lấy kết nối Database cho mỗi request
 def get_db():
     db = SessionLocal()
-    try: yield db
-    finally: db.close()
+    try:
+        yield db
+    finally:
+        db.close()
 
-# Dữ liệu đầu vào từ điện thoại
+# Mô hình dữ liệu đầu vào (Validation)
 class PhieuInput(BaseModel):
     ho_ten: str
     ngay_sinh: str = ""
@@ -74,22 +98,35 @@ class PhieuInput(BaseModel):
     sdt: str = ""
     nghe_nghiep: str = "Đang có việc làm"
 
-# --- 4. CÁC API ---
+# ==================================================================================
+# 4. CÁC API (CỬA NGÕ GIAO TIẾP)
+# ==================================================================================
+
 @app.get("/")
-def home(): return {"message": "Server Dân Cư - AWS-1 OK!"}
+def home():
+    return {"message": "Server Dân Cư Online - Đã kích hoạt SSL!"}
 
 @app.get("/api/danh-sach")
 def lay_danh_sach(db: Session = Depends(get_db)):
+    """Lấy toàn bộ danh sách phiếu đã nhập"""
     return db.query(PhieuKhaoSat).all()
 
 @app.post("/api/gui-phieu")
 def gui_phieu(form: PhieuInput, db: Session = Depends(get_db)):
+    """Nhận phiếu từ App điện thoại và lưu vào Database"""
     try:
+        # Tạo đối tượng mới từ dữ liệu gửi lên
         phieu_moi = PhieuKhaoSat(**form.dict())
+        
+        # Lưu vào Database
         db.add(phieu_moi)
         db.commit()
         db.refresh(phieu_moi)
+        
+        print(f"📝 Đã lưu phiếu của: {form.ho_ten}")
         return {"message": "Gửi thành công", "data": phieu_moi}
+        
     except Exception as e:
-        print(f"Lỗi: {e}")
-        raise HTTPException(status_code=500, detail="Lỗi lưu dữ liệu vào Database")
+        print(f"❌ Lỗi khi lưu phiếu: {e}")
+        # Trả về lỗi 500 để App điện thoại biết đường báo lỗi
+        raise HTTPException(status_code=500, detail=f"Lỗi Server: {str(e)}")
