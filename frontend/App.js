@@ -6,22 +6,18 @@ import {
 
 const API_URL = 'https://api-dan-cu.onrender.com/api'; 
 
-// --- 1. COMPONENT INPUT (ĐỂ NGOÀI ĐỂ KHÔNG MẤT BÀN PHÍM) ---
+// --- 1. COMPONENT INPUT ---
 const InputField = ({ label, val, setVal, placeholder, keyboard = 'default', isPassword=false }) => (
   <View style={styles.inputGroup}>
     <Text style={styles.label}>{label}</Text>
     <TextInput 
-      style={styles.input} 
-      value={val} 
-      onChangeText={setVal} 
-      placeholder={placeholder} 
-      keyboardType={keyboard}
-      secureTextEntry={isPassword}
+      style={styles.input} value={val} onChangeText={setVal} 
+      placeholder={placeholder} keyboardType={keyboard} secureTextEntry={isPassword}
     />
   </View>
 );
 
-// --- 2. COMPONENT RADIO (ĐÃ SỬA LỖI GIỚI TÍNH) ---
+// --- 2. COMPONENT RADIO ---
 const RadioGroup = ({ label, options, selected, onSelect }) => (
   <View style={styles.inputGroup}>
     <Text style={styles.label}>{label}</Text>
@@ -30,10 +26,9 @@ const RadioGroup = ({ label, options, selected, onSelect }) => (
         <TouchableOpacity 
           key={opt} 
           style={[styles.radioBtn, selected === opt && styles.radioSelected]}
-          onPress={() => onSelect(opt)} // Sửa lỗi: Dùng arrow function để không bị gọi nhầm
+          onPress={() => onSelect(opt)}
           activeOpacity={0.7}
         >
-          {/* Vẽ hình tròn giả lập Radio */}
           <View style={[styles.radioCircle, selected === opt && styles.radioCircleSelected]} />
           <Text style={[styles.radioText, selected === opt && styles.textSelected]}>{opt}</Text>
         </TouchableOpacity>
@@ -49,17 +44,18 @@ const LoginScreen = ({ onLoginSuccess, onGoRegister }) => {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if(!phone || !pass) return Alert.alert("Lỗi", "Vui lòng nhập đủ thông tin");
+    if(!phone || !pass) return Alert.alert("Lỗi", "Nhập đủ thông tin");
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/dang-nhap`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ sdt: phone, mat_khau: pass })
       });
       const data = await res.json();
-      if(res.ok) { onLoginSuccess({ sdt: phone, ho_ten: data.ho_ten }); } 
-      else { Alert.alert("Thất bại", data.detail || "Sai thông tin"); }
+      if(res.ok) { 
+        // Server giờ đã trả về đúng tên người đăng ký
+        onLoginSuccess({ sdt: phone, ho_ten: data.ho_ten }); 
+      } else { Alert.alert("Thất bại", data.detail); }
     } catch { Alert.alert("Lỗi mạng", "Không kết nối được Server"); }
     setLoading(false);
   };
@@ -67,16 +63,13 @@ const LoginScreen = ({ onLoginSuccess, onGoRegister }) => {
   return (
     <View style={styles.authContainer}>
       <StatusBar barStyle="light-content" backgroundColor="#B91C1C" />
-      <View style={styles.logoBox}>
-        <Text style={styles.logoText}>VNeID</Text>
-        <Text style={styles.logoSub}>QUẢN LÝ DỮ LIỆU DÂN CƯ ĐỊA PHƯƠNG</Text>
-      </View>
+      <View style={styles.logoBox}><Text style={styles.logoText}>VNeID</Text><Text style={styles.logoSub}>QUẢN LÝ DÂN CƯ ĐỊA PHƯƠNG</Text></View>
       <View style={styles.authBox}>
         <Text style={styles.authTitle}>ĐĂNG NHẬP</Text>
-        <TextInput style={styles.authInput} placeholder="Số điện thoại" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+        <TextInput style={styles.authInput} placeholder="SĐT" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
         <TextInput style={styles.authInput} placeholder="Mật khẩu" secureTextEntry value={pass} onChangeText={setPass} />
         <TouchableOpacity style={styles.authBtn} onPress={handleLogin} disabled={loading}><Text style={styles.authBtnText}>{loading ? "..." : "ĐĂNG NHẬP"}</Text></TouchableOpacity>
-        <TouchableOpacity onPress={onGoRegister} style={{marginTop: 20}}><Text style={{color: '#B91C1C', fontWeight: 'bold'}}>Chưa có tài khoản? Đăng ký ngay</Text></TouchableOpacity>
+        <TouchableOpacity onPress={onGoRegister} style={{marginTop: 20}}><Text style={{color: '#B91C1C', fontWeight: 'bold'}}>Đăng ký tài khoản mới</Text></TouchableOpacity>
       </View>
     </View>
   );
@@ -90,12 +83,11 @@ const RegisterScreen = ({ onGoLogin }) => {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if(!phone || !pass || !name) return Alert.alert("Lỗi", "Vui lòng nhập đủ thông tin");
+    if(!phone || !pass || !name) return Alert.alert("Lỗi", "Nhập đủ thông tin");
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/dang-ky`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ sdt: phone, mat_khau: pass, ho_ten: name })
       });
       if(res.ok) { Alert.alert("Thành công", "Đăng ký xong! Hãy đăng nhập."); onGoLogin(); } 
@@ -109,7 +101,7 @@ const RegisterScreen = ({ onGoLogin }) => {
       <View style={styles.logoBox}><Text style={styles.logoText}>ĐĂNG KÝ</Text></View>
       <View style={styles.authBox}>
         <TextInput style={styles.authInput} placeholder="Họ tên hiển thị" value={name} onChangeText={setName} />
-        <TextInput style={styles.authInput} placeholder="Số điện thoại" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+        <TextInput style={styles.authInput} placeholder="SĐT" keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
         <TextInput style={styles.authInput} placeholder="Mật khẩu" secureTextEntry value={pass} onChangeText={setPass} />
         <TouchableOpacity style={styles.authBtn} onPress={handleRegister} disabled={loading}><Text style={styles.authBtnText}>{loading ? "..." : "ĐĂNG KÝ"}</Text></TouchableOpacity>
         <TouchableOpacity onPress={onGoLogin} style={{marginTop: 20}}><Text style={{color: '#B91C1C', fontWeight: 'bold'}}>Quay lại đăng nhập</Text></TouchableOpacity>
@@ -118,24 +110,24 @@ const RegisterScreen = ({ onGoLogin }) => {
   );
 };
 
-// --- 5. MAIN FORM (ĐẦY ĐỦ CÁC TRƯỜNG) ---
+// --- 5. MAIN FORM ---
 const MainForm = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState(1);
   const [loading, setLoading] = useState(false);
   
-  // Dữ liệu Người khai (Tab 1)
+  // Dữ liệu Người khai 
   const [nguoiKhai, setNguoiKhai] = useState({
-    ho_ten: '', ngay_sinh: '', gio_tinh: 'Nam', 
+    ho_ten: '', ngay_sinh: '', 
+    gioi_tinh: 'Nam', // ĐÃ SỬA: 'gioi_tinh' (có chữ i) để khớp Server
     so_cmnd: '', ngay_cap: '', noi_cap: 'Cục CS QLHC về TTXH - BCA',
     thuong_tru: '', noi_o_hien_tai: '', 
     que_quan: '', trinh_do: '12/12', dan_toc: 'Kinh', ton_giao: 'Không',
     sdt: '', cong_viec: 'Đang có việc làm'
   });
   
-  // Dữ liệu Thành viên (Tab 2)
   const [thanhVien, setThanhVien] = useState([]);
 
-  // Logic cập nhật
+  // Logic cập nhật (Đã sửa key gioi_tinh)
   const updateNguoiKhai = (k, v) => setNguoiKhai(prev => ({ ...prev, [k]: v }));
   
   const themThanhVien = () => setThanhVien([...thanhVien, {
@@ -161,15 +153,15 @@ const MainForm = ({ user, onLogout }) => {
   };
 
   const guiHoSo = async () => {
-    if(!nguoiKhai.ho_ten || !nguoiKhai.so_cmnd) return Alert.alert("Thiếu", "Nhập tên và CMND ở Tab 1");
+    if(!nguoiKhai.ho_ten || !nguoiKhai.so_cmnd) return Alert.alert("Thiếu", "Nhập tên và CMND");
     setLoading(true);
+    // Gửi kèm gioi_tinh đã sửa
     const data = { ...nguoiKhai, danh_sach_thanh_vien: JSON.stringify(thanhVien), nguoi_tao_sdt: user.sdt };
     try {
       const res = await fetch(`${API_URL}/gui-phieu`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data)});
       if(res.ok) {
         Alert.alert("Thành công", "✅ Đã gửi phiếu!");
-        // Reset form
-        setNguoiKhai({ ho_ten:'', ngay_sinh:'', gio_tinh:'Nam', so_cmnd:'', ngay_cap:'', noi_cap:'Cục CS QLHC về TTXH - BCA', thuong_tru:'', noi_o_hien_tai:'', que_quan:'', trinh_do:'12/12', dan_toc:'Kinh', ton_giao:'Không', sdt:'', cong_viec:'Đang có việc làm'});
+        setNguoiKhai({ ho_ten:'', ngay_sinh:'', gioi_tinh:'Nam', so_cmnd:'', ngay_cap:'', noi_cap:'Cục CS QLHC về TTXH - BCA', thuong_tru:'', noi_o_hien_tai:'', que_quan:'', trinh_do:'12/12', dan_toc:'Kinh', ton_giao:'Không', sdt:'', cong_viec:'Đang có việc làm'});
         setThanhVien([]); setActiveTab(1);
       } else { Alert.alert("Lỗi", "Server từ chối"); }
     } catch { Alert.alert("Lỗi mạng", "Kiểm tra kết nối"); }
@@ -180,23 +172,25 @@ const MainForm = ({ user, onLogout }) => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#B91C1C" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>XIN CHÀO: {user.ho_ten.toUpperCase()}</Text>
+        {/* HIỆN ĐÚNG TÊN NGƯỜI DÙNG */}
+        <Text style={styles.headerTitle}>XIN CHÀO: {user.ho_ten ? user.ho_ten.toUpperCase() : user.sdt}</Text>
         <TouchableOpacity onPress={onLogout}><Text style={{color:'#fff', textDecorationLine:'underline'}}>Đăng xuất</Text></TouchableOpacity>
       </View>
+      
       <View style={styles.tabContainer}>
         <TouchableOpacity style={[styles.tabBtn, activeTab===1 && styles.tabActive]} onPress={()=>setActiveTab(1)}><Text style={[styles.tabText, activeTab===1 && styles.textSelected]}>1. ĐẠI DIỆN</Text></TouchableOpacity>
         <TouchableOpacity style={[styles.tabBtn, activeTab===2 && styles.tabActive]} onPress={()=>setActiveTab(2)}><Text style={[styles.tabText, activeTab===2 && styles.textSelected]}>2. THÀNH VIÊN ({thanhVien.length})</Text></TouchableOpacity>
       </View>
+
       <KeyboardAvoidingView behavior={Platform.OS==="ios"?"padding":"height"} style={{flex:1}}>
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-          
-          {/* === TAB 1: NGƯỜI ĐẠI DIỆN === */}
           {activeTab === 1 && (
             <View>
               <InputField label="Họ tên người khai (*)" val={nguoiKhai.ho_ten} setVal={v=>updateNguoiKhai('ho_ten', v.toUpperCase())} placeholder="IN HOA" />
               <View style={styles.row}>
                   <View style={{flex:1, marginRight:5}}><InputField label="Ngày sinh" val={nguoiKhai.ngay_sinh} setVal={v=>updateNguoiKhai('ngay_sinh', v)}/></View>
-                  <View style={{flex:1}}><RadioGroup label="Giới tính" options={['Nam','Nữ']} selected={nguoiKhai.gio_tinh} onSelect={v=>updateNguoiKhai('gio_tinh',v)}/></View>
+                  {/* COMPONENT RADIO ĐÃ DÙNG ĐÚNG BIẾN 'gioi_tinh' */}
+                  <View style={{flex:1}}><RadioGroup label="Giới tính" options={['Nam','Nữ']} selected={nguoiKhai.gioi_tinh} onSelect={v=>updateNguoiKhai('gioi_tinh',v)}/></View>
               </View>
               <InputField label="CMND/CCCD (*)" val={nguoiKhai.so_cmnd} setVal={v=>updateNguoiKhai('so_cmnd',v)} keyboard="numeric"/>
               <View style={styles.row}>
@@ -218,7 +212,6 @@ const MainForm = ({ user, onLogout }) => {
             </View>
           )}
 
-          {/* === TAB 2: THÀNH VIÊN === */}
           {activeTab === 2 && (
             <View>
               {thanhVien.map((tv, i)=>(
@@ -232,25 +225,20 @@ const MainForm = ({ user, onLogout }) => {
                       <View style={{flex:1, marginRight:5}}><InputField label="Ngày sinh" val={tv.ngay_sinh} setVal={v=>updateThanhVien(i,'ngay_sinh',v)}/></View>
                       <View style={{flex:1}}><InputField label="CMND/ĐDCN" val={tv.so_cmnd} setVal={v=>updateThanhVien(i,'so_cmnd',v)} keyboard="numeric"/></View>
                   </View>
-                  
                   <View style={styles.row}>
                       <View style={{flex:1, marginRight:5}}><InputField label="Ngày cấp" val={tv.ngay_cap} setVal={v=>updateThanhVien(i,'ngay_cap', v)}/></View>
                       <View style={{flex:1}}><InputField label="Nơi cấp" val={tv.noi_cap} setVal={v=>updateThanhVien(i,'noi_cap', v)}/></View>
                   </View>
-
                   <TouchableOpacity style={styles.copyBtn} onPress={()=>copyDiaChi(i)}><Text style={{color:'#fff'}}>📋 Chép địa chỉ chủ hộ</Text></TouchableOpacity>
                   <InputField label="Thường trú" val={tv.thuong_tru} setVal={v=>updateThanhVien(i,'thuong_tru',v)}/>
                   <InputField label="Hiện tại" val={tv.noi_o_hien_tai} setVal={v=>updateThanhVien(i,'noi_o_hien_tai',v)}/>
-                  
                   <View style={styles.row}>
                       <View style={{flex:1, marginRight:5}}><InputField label="Dân tộc" val={tv.dan_toc} setVal={v=>updateThanhVien(i,'dan_toc',v)}/></View>
                       <View style={{flex:1}}><InputField label="Tôn giáo" val={tv.ton_giao} setVal={v=>updateThanhVien(i,'ton_giao',v)}/></View>
                   </View>
-
                   <InputField label="Trình độ văn hóa" val={tv.trinh_do} setVal={v=>updateThanhVien(i,'trinh_do',v)}/>
                   <InputField label="Chuyên môn" val={tv.chuyen_mon} setVal={v=>updateThanhVien(i,'chuyen_mon',v)}/>
                   <InputField label="Quốc tịch" val={tv.quoc_tich} setVal={v=>updateThanhVien(i,'quoc_tich',v)}/>
-
                   <Text style={styles.label}>Tình trạng (Chọn nhiều):</Text>
                   <View style={{flexDirection:'row', flexWrap:'wrap'}}>
                     {['Thất nghiệp','Đang có việc làm','Hết tuổi lao động','Học sinh','Trẻ sơ sinh','Sống Một Mình'].map(tt=>(
@@ -315,7 +303,6 @@ const styles = StyleSheet.create({
   textSelected: { color: '#B91C1C' }
 });
 
-// --- APP ROOT ---
 export default function App() {
   const [screen, setScreen] = useState('LOGIN'); 
   const [currentUser, setCurrentUser] = useState(null);

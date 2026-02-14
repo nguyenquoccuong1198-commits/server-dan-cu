@@ -17,31 +17,39 @@ except Exception as e:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU (FULL OPTION) ---
+# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU ---
+
+# Bảng User (Để đăng nhập và lấy tên thật)
+class User(Base):
+    __tablename__ = "users_final_v2" 
+    id = Column(Integer, primary_key=True, index=True)
+    sdt = Column(String, unique=True, index=True)
+    mat_khau = Column(String)
+    ho_ten = Column(String)
+
+# Bảng Hồ Sơ
 class HoSoDanCu(Base):
-    __tablename__ = "hoso_dancu_final_v2" # Đổi tên bảng để tạo mới sạch sẽ
+    __tablename__ = "hoso_dancu_final_v3" # Đổi v3 để reset lại cột giới tính cho sạch
     id = Column(Integer, primary_key=True, index=True)
     nguoi_tao_sdt = Column(String)
     
-    # Tab 1: Chủ hộ
+    # Tab 1
     ho_ten = Column(String)
     ngay_sinh = Column(String)
-    gioi_tinh = Column(String)
+    gioi_tinh = Column(String) # Server chờ 'gioi_tinh'
     so_cmnd = Column(String)
     ngay_cap = Column(String)
     noi_cap = Column(String)
     thuong_tru = Column(String)
     noi_o_hien_tai = Column(String)
     que_quan = Column(String)
-    
-    # Các trường hay bị thiếu
-    trinh_do = Column(String) # Trình độ văn hóa
+    trinh_do = Column(String)
     dan_toc = Column(String)
     ton_giao = Column(String)
     sdt = Column(String)
     cong_viec = Column(String)
 
-    # Tab 2: Thành viên (Lưu JSON)
+    # Tab 2
     danh_sach_thanh_vien = Column(Text) 
 
 try:
@@ -58,38 +66,56 @@ def get_db():
     try: yield db
     finally: db.close()
 
-# Input Model (Phải khớp với App điện thoại)
+# Models
+class UserInput(BaseModel):
+    sdt: str
+    mat_khau: str
+    ho_ten: str = ""
+
+class LoginInput(BaseModel):
+    sdt: str
+    mat_khau: str
+
 class HoSoInput(BaseModel):
     nguoi_tao_sdt: str = ""
     ho_ten: str
     ngay_sinh: str = ""
-    gioi_tinh: str = ""
+    gioi_tinh: str = "" # Quan trọng: Phải là 'gioi_tinh'
     so_cmnd: str = ""
     ngay_cap: str = ""
     noi_cap: str = ""
     thuong_tru: str = ""
     noi_o_hien_tai: str = ""
     que_quan: str = ""
-    trinh_do: str = "" # Quan trọng
+    trinh_do: str = ""
     dan_toc: str = ""
     ton_giao: str = ""
     sdt: str = ""
     cong_viec: str = ""
     danh_sach_thanh_vien: str = "[]"
 
-# --- 4. API ---
+# --- API ---
 @app.get("/")
-def home(): return {"message": "Server Final V2 OK"}
+def home(): return {"message": "Server V3 Online"}
 
 @app.post("/api/dang-ky")
-def dang_ky(user: dict, db: Session = Depends(get_db)):
-    # (Giữ code đăng ký cũ hoặc trả về dummy nếu không dùng bảng user riêng)
-    return {"message": "OK"}
+def dang_ky(user: UserInput, db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.sdt == user.sdt).first()
+    if db_user:
+        raise HTTPException(status_code=400, detail="SĐT đã tồn tại")
+    new_user = User(sdt=user.sdt, mat_khau=user.mat_khau, ho_ten=user.ho_ten)
+    db.add(new_user)
+    db.commit()
+    return {"message": "Đăng ký thành công"}
 
 @app.post("/api/dang-nhap")
-def dang_nhap(form: dict, db: Session = Depends(get_db)):
-    # Đăng nhập giả lập để test nhanh, hoặc dùng bảng User nếu cần
-    return {"message": "OK", "ho_ten": "Cán bộ", "sdt": form.get("sdt")}
+def dang_nhap(form: LoginInput, db: Session = Depends(get_db)):
+    # Tìm user trong database để lấy tên thật
+    user = db.query(User).filter(User.sdt == form.sdt, User.mat_khau == form.mat_khau).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Sai SĐT hoặc mật khẩu")
+    # Trả về tên thật của người dùng
+    return {"message": "OK", "ho_ten": user.ho_ten, "sdt": user.sdt}
 
 @app.get("/api/danh-sach")
 def lay_danh_sach(db: Session = Depends(get_db)):
