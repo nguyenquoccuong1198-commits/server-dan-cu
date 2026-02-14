@@ -5,11 +5,11 @@ from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 
-# --- 1. CẤU HÌNH DATABASE ---
-# Link kết nối chuẩn (Đã có SSL để Supabase không chặn)
-DATABASE_URL = "postgresql://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
+# --- 1. CẤU HÌNH DATABASE (BẢN KHÔNG BAO GIỜ TREO) ---
+# Dùng driver postgresql+psycopg2 và chế độ SSL bắt buộc
+DATABASE_URL = "postgresql+psycopg2://postgres.vokaxxmfssepxkxfenqa:AdminVietNam2026@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres?sslmode=require"
 
-# Tạo engine kết nối (Bỏ qua bước test kết nối ngay lập tức để App khởi động nhanh)
+# Tạo engine đơn giản nhất có thể (Bỏ qua kiểm tra kết nối lúc khởi động)
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -33,7 +33,7 @@ class PhieuKhaoSat(Base):
     sdt = Column(String)
     nghe_nghiep = Column(String)
 
-# Tạo bảng (Thử tạo, nếu lỗi thì bỏ qua để không chặn App)
+# Thử tạo bảng (Nếu lỗi thì bỏ qua luôn để Server vẫn chạy được)
 try:
     Base.metadata.create_all(bind=engine)
 except:
@@ -66,10 +66,10 @@ class PhieuInput(BaseModel):
     sdt: str = ""
     nghe_nghiep: str = "Đang có việc làm"
 
-# --- 4. API ---
+# --- 4. API (Có in Log để kiểm tra) ---
 @app.get("/")
 def home(): 
-    return {"message": "Server Dân Cư Online - Sẵn sàng!"}
+    return {"message": "Server Dân Cư - Sẵn sàng nhận lệnh!"}
 
 @app.get("/api/danh-sach")
 def lay_danh_sach(db: Session = Depends(get_db)):
@@ -77,12 +77,14 @@ def lay_danh_sach(db: Session = Depends(get_db)):
 
 @app.post("/api/gui-phieu")
 def gui_phieu(form: PhieuInput, db: Session = Depends(get_db)):
+    print(f"--> Đang nhận phiếu của: {form.ho_ten}") # In log để biết có tin hiệu
     try:
         phieu_moi = PhieuKhaoSat(**form.dict())
         db.add(phieu_moi)
         db.commit()
         db.refresh(phieu_moi)
+        print("--> Đã lưu thành công!")
         return {"message": "Gửi thành công", "data": phieu_moi}
     except Exception as e:
-        print(f"Lỗi: {e}")
-        raise HTTPException(status_code=500, detail="Lỗi lưu dữ liệu")
+        print(f"--> LỖI KHI LƯU: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi Server: {str(e)}")
