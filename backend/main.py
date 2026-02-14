@@ -17,23 +17,13 @@ except Exception as e:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU ---
-
-# Bảng Tài Khoản (User)
-class User(Base):
-    __tablename__ = "users_final" # Đổi tên mới để tránh lỗi cũ
-    id = Column(Integer, primary_key=True, index=True)
-    sdt = Column(String, unique=True, index=True)
-    mat_khau = Column(String)
-    ho_ten = Column(String)
-
-# Bảng Hồ Sơ (Dữ liệu dân cư)
+# --- 2. ĐỊNH NGHĨA BẢNG DỮ LIỆU (FULL OPTION) ---
 class HoSoDanCu(Base):
-    __tablename__ = "hoso_dancu_final" # Đổi tên bảng để tạo mới hoàn toàn
+    __tablename__ = "hoso_dancu_final_v2" # Đổi tên bảng để tạo mới sạch sẽ
     id = Column(Integer, primary_key=True, index=True)
-    nguoi_tao_sdt = Column(String) # Cột mới này sẽ được tạo
+    nguoi_tao_sdt = Column(String)
     
-    # Tab 1
+    # Tab 1: Chủ hộ
     ho_ten = Column(String)
     ngay_sinh = Column(String)
     gioi_tinh = Column(String)
@@ -43,16 +33,17 @@ class HoSoDanCu(Base):
     thuong_tru = Column(String)
     noi_o_hien_tai = Column(String)
     que_quan = Column(String)
-    trinh_do = Column(String)
+    
+    # Các trường hay bị thiếu
+    trinh_do = Column(String) # Trình độ văn hóa
     dan_toc = Column(String)
     ton_giao = Column(String)
     sdt = Column(String)
     cong_viec = Column(String)
 
-    # Tab 2
+    # Tab 2: Thành viên (Lưu JSON)
     danh_sach_thanh_vien = Column(Text) 
 
-# Tạo bảng (Sẽ tạo bảng mới tên ..._final)
 try:
     Base.metadata.create_all(bind=engine)
 except:
@@ -67,58 +58,43 @@ def get_db():
     try: yield db
     finally: db.close()
 
-# --- MODEL INPUT ---
-class UserInput(BaseModel):
-    sdt: str
-    mat_khau: str
-    ho_ten: str = ""
-
-class LoginInput(BaseModel):
-    sdt: str
-    mat_khau: str
-
+# Input Model (Phải khớp với App điện thoại)
 class HoSoInput(BaseModel):
-    nguoi_tao_sdt: str = "" 
+    nguoi_tao_sdt: str = ""
     ho_ten: str
     ngay_sinh: str = ""
-    gioi_tinh: str = "Nam"
+    gioi_tinh: str = ""
     so_cmnd: str = ""
     ngay_cap: str = ""
-    noi_cap: str = "Cục CS QLHC về TTXH - BCA"
+    noi_cap: str = ""
     thuong_tru: str = ""
     noi_o_hien_tai: str = ""
     que_quan: str = ""
-    trinh_do: str = ""
-    dan_toc: str = "Kinh"
-    ton_giao: str = "Không"
+    trinh_do: str = "" # Quan trọng
+    dan_toc: str = ""
+    ton_giao: str = ""
     sdt: str = ""
-    cong_viec: str = "Đang có việc làm"
+    cong_viec: str = ""
     danh_sach_thanh_vien: str = "[]"
 
-# --- API ---
+# --- 4. API ---
 @app.get("/")
-def home(): return {"message": "Server Final - Online!"}
+def home(): return {"message": "Server Final V2 OK"}
 
-# 1. Đăng ký
 @app.post("/api/dang-ky")
-def dang_ky(user: UserInput, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.sdt == user.sdt).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Số điện thoại này đã được đăng ký!")
-    new_user = User(sdt=user.sdt, mat_khau=user.mat_khau, ho_ten=user.ho_ten)
-    db.add(new_user)
-    db.commit()
-    return {"message": "Đăng ký thành công"}
+def dang_ky(user: dict, db: Session = Depends(get_db)):
+    # (Giữ code đăng ký cũ hoặc trả về dummy nếu không dùng bảng user riêng)
+    return {"message": "OK"}
 
-# 2. Đăng nhập
 @app.post("/api/dang-nhap")
-def dang_nhap(form: LoginInput, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.sdt == form.sdt, User.mat_khau == form.mat_khau).first()
-    if not user:
-        raise HTTPException(status_code=400, detail="Sai số điện thoại hoặc mật khẩu")
-    return {"message": "Đăng nhập thành công", "ho_ten": user.ho_ten, "sdt": user.sdt}
+def dang_nhap(form: dict, db: Session = Depends(get_db)):
+    # Đăng nhập giả lập để test nhanh, hoặc dùng bảng User nếu cần
+    return {"message": "OK", "ho_ten": "Cán bộ", "sdt": form.get("sdt")}
 
-# 3. Gửi phiếu
+@app.get("/api/danh-sach")
+def lay_danh_sach(db: Session = Depends(get_db)):
+    return db.query(HoSoDanCu).order_by(HoSoDanCu.id.desc()).all()
+
 @app.post("/api/gui-phieu")
 def gui_phieu(form: HoSoInput, db: Session = Depends(get_db)):
     try:
@@ -127,10 +103,5 @@ def gui_phieu(form: HoSoInput, db: Session = Depends(get_db)):
         db.commit()
         return {"message": "Thành công"}
     except Exception as e:
-        print(f"Lỗi Save: {e}")
+        print(f"Lỗi: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# 4. Lấy danh sách
-@app.get("/api/danh-sach")
-def lay_danh_sach(db: Session = Depends(get_db)):
-    return db.query(HoSoDanCu).order_by(HoSoDanCu.id.desc()).all()
